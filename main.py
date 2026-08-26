@@ -190,6 +190,8 @@ def generate_improved_resume(evaluation_id: int, db: Session = Depends(get_db)):
         1. DO NOT invent, hallucinate, or add any fake jobs, companies, degrees, or experiences.
         2. Strictly use ONLY the facts, experiences, and skills provided in the Original Resume Text.
         3. Output ONLY the raw HTML code. Do not include markdown formatting like ```html.
+        4. STRICTLY DO NOT use any emojis. Use standard text and professional bullet points only.
+        5. Apply CSS styling to ensure ALL text, including headings, links (<a> tags), and bold text (<strong> or <b>), is STRICTLY BLACK (#000000). Do not use blue or any other colors.
 
         ATS Weaknesses to fix: {evaluation.weaknesses}
 
