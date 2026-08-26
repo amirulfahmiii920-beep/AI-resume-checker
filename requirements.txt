@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+PyPDF2
+python-dotenv
+google-generativeai
+pdfkit
+pydantic
+cryptography
