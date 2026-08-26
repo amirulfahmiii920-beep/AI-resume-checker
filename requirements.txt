@@ -8,3 +8,4 @@ google-generativeai
 pdfkit
 pydantic
 cryptography
+python-multipart
