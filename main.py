@@ -36,7 +36,10 @@ copilot_model = genai.GenerativeModel("gemini-3.6-flash")
 
 # 3. Database setup
 DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"ssl": {"check_hostname": False, "cert_reqs": 0}}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 models.Base.metadata.create_all(bind=engine)
 
