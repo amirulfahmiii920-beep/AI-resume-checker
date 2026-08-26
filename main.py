@@ -168,8 +168,16 @@ def generate_improved_resume(evaluation_id: int, db: Session = Depends(get_db)):
     if not evaluation:
         raise HTTPException(status_code=404, detail="Evaluation record not found")
         
+    # 2. Check user quota before proceeding
+    user_data = db.query(models.User).filter(models.User.id == evaluation.user_id).first()
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if user_data.ai_quota <= 0:
+        raise HTTPException(status_code=429, detail="Your AI trial quota has been exhausted.")
+        
     try:
-        # 2. Instruct the 3.6 Flash model to act as a career mentor
+        # 3. Instruct the Co-pilot model
         prompt = f"""
         You are an expert career mentor and resume writer.
         Your task is to rewrite the provided original resume in a highly professional HTML format, fixing the identified weaknesses.
@@ -190,6 +198,14 @@ def generate_improved_resume(evaluation_id: int, db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Co-pilot generation failed: {str(e)}")
+        
+    # 4. Deduct quota after successful generation
+    try:
+        user_data.ai_quota -= 1
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update user quota: {str(e)}")
         
     return {
         "status": "Success",
