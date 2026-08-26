@@ -243,3 +243,15 @@ def export_pdf(data: HTMLInput):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+        # 7. Fetch a Single Evaluation Record (GET)
+@app.get("/evaluations/{evaluation_id}")
+def get_evaluation(evaluation_id: int, db: Session = Depends(get_db)):
+    # Tarik satu rekod penilaian spesifik dari pangkalan data MySQL
+    evaluation = db.query(models.ResumeEvaluation).filter(models.ResumeEvaluation.id == evaluation_id).first()
+    
+    # Jika rekod tak wujud, keluarkan ralat 404
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluation record not found")
+        
+    return evaluation
