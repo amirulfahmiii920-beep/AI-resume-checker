@@ -41,6 +41,7 @@ engine = create_engine(
     connect_args={"ssl": {"check_hostname": False, "cert_reqs": 0}}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+#clear data
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
