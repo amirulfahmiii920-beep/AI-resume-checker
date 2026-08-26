@@ -1,5 +1,5 @@
 # Use official Python image
-FROM python:3.10-slim
+FROM python:3.10-slim-bullseye
 
 # Install wkhtmltopdf for Linux
 RUN apt-get update && apt-get install -y wkhtmltopdf
