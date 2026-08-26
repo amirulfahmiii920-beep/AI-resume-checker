@@ -24,3 +24,4 @@ class ResumeEvaluation(Base):
     ats_score = Column(Float)
     strengths = Column(Text)
     weaknesses = Column(Text)
+    user = relationship("User", back_populates="evaluations")
