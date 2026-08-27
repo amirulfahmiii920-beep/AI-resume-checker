@@ -42,8 +42,7 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Clear data setup
-models.Base.metadata.drop_all(bind=engine)
+
 # Create tables based on the existing models
 models.Base.metadata.create_all(bind=engine)
 
@@ -149,9 +148,51 @@ def generate_improved_resume(evaluation_id: int, db: Session = Depends(get_db)):
         CRITICAL RULES:
         1. DO NOT invent, hallucinate, or add any fake jobs, companies, degrees, or experiences.
         2. Strictly use ONLY the facts, experiences, and skills provided in the Original Resume Text.
-        3. Output ONLY the raw HTML code. Do not include markdown formatting like ```html.
+        3. Output ONLY the raw HTML code. Do not include markdown formatting.
         4. STRICTLY DO NOT use any emojis. Use standard text and professional bullet points only.
-        5. Apply CSS styling to ensure ALL text, including headings, links (<a> tags), and bold text (<strong> or <b>), is STRICTLY BLACK (#000000). Do not use blue or any other colors.
+        5. When rewriting details about mobile application development, ensure it is exclusively described for the Android platform. Avoid writing it as cross-platform.
+        6. Do not use the abbreviation "e.g." or semicolons in the middle of sentences.
+
+        HTML AND CSS FORMATTING RULES:
+        1. Apply inline CSS styling to ensure ALL text, including headings and links, is STRICTLY BLACK (#000000). 
+        2. Use Arial, Helvetica, or a similar professional sans-serif font.
+        3. The layout MUST exactly mimic the following structure and sequence, replacing the bracketed text with the optimized content:
+
+        <div style="font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.4;">
+            <div style="text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase;">[FULL NAME]</div>
+            <div style="text-align: center; font-size: 10pt;">Phone: [Phone] | Email: [Email] | LinkedIn: [LinkedIn] | GitHub: [GitHub]</div>
+            <div style="text-align: center; font-size: 10pt; margin-bottom: 15px;">Address: [Address]</div>
+            
+            <h3 style="text-transform: uppercase; font-size: 12pt; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 5px;">SUMMARY</h3>
+            <p style="margin-top: 0;">[Improved paragraph summary fixing the weaknesses, strictly in one paragraph]</p>
+
+            <h3 style="text-transform: uppercase; font-size: 12pt; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 5px;">CORE TECHNICAL SKILLS</h3>
+            <p style="margin-top: 0; margin-bottom: 0;"><strong>[Category 1]:</strong> [Comma-separated skills]</p>
+            <p style="margin-top: 0; margin-bottom: 0;"><strong>[Category 2]:</strong> [Comma-separated skills]</p>
+
+            <h3 style="text-transform: uppercase; font-size: 12pt; border-bottom: 1px solid black; padding-bottom: 2px; margin-top: 15px; margin-bottom: 5px;">ACADEMIC QUALIFICATION</h3>
+            <p style="margin-top: 0; margin-bottom: 2px;"><strong>[Month Year - Month Year]: [Degree], [University]</strong></p>
+            <ul style="margin-top: 0;">
+                <li>[Improved bullet points focusing on final year projects and key achievements]</li>
+            </ul>
+
+            <h3 style="text-transform: uppercase; font-size: 12pt; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 5px;">KEY PROJECT EXPERIENCE</h3>
+            <p style="margin-top: 0; margin-bottom: 2px;"><strong>[Project Name 1]</strong></p>
+            <ul style="margin-top: 0; margin-bottom: 10px;">
+                <li>[Improved bullet points focusing on impact and tools used]</li>
+            </ul>
+
+            <h3 style="text-transform: uppercase; font-size: 12pt; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 5px;">PROFESSIONAL EXPERIENCES</h3>
+            <p style="margin-top: 0; margin-bottom: 2px;"><strong>[Month Year - Month Year]: [Job Title], [Company]</strong></p>
+            <ul style="margin-top: 0; margin-bottom: 10px;">
+                <li>[Improved bullet points focusing on achievements]</li>
+            </ul>
+
+            <h3 style="text-transform: uppercase; font-size: 12pt; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 5px;">REFEREES</h3>
+            <p style="margin-top: 0; margin-bottom: 0;"><strong>[Referee Name 1]</strong></p>
+            <p style="margin-top: 0; margin-bottom: 0;">[Title], [Company]</p>
+            <p style="margin-top: 0; margin-bottom: 10px;">Phone No: [Phone]</p>
+        </div>
 
         ATS Weaknesses to fix: {evaluation.weaknesses}
 
