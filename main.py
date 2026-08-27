@@ -29,10 +29,10 @@ else:
     print("WARNING: GEMINI_API_KEY not found in .env file.")
 
 # Initialize the Gemini model
-ai_model = genai.GenerativeModel("gemini-3.7-flash")
+ai_model = genai.GenerativeModel("gemini-3.5-flash")
 
 # Initialize the Co-pilot model for rewriting
-copilot_model = genai.GenerativeModel("gemini-3.6-flash")
+copilot_model = genai.GenerativeModel("gemini-3.5-flash-lite")
 
 # 3. Database setup
 DATABASE_URL = os.getenv("DATABASE_URL")
