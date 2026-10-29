@@ -1,19 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional
-
-# Schema for creating a new user from frontend
-class UserCreate(BaseModel):
-    name: str
-    email: str
-
-# Schema for sending User data back to frontend
-class UserResponse(BaseModel):
-    id: int
-    name: str
-    email: str
-
-    class Config:
-        from_attributes = True
 
 # Schema for saving a new Resume Evaluation
 class ResumeEvaluationCreate(BaseModel):

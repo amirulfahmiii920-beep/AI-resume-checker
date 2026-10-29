@@ -1,7 +1,6 @@
 import io
 import os
 import json
-from typing import List
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -36,10 +35,13 @@ copilot_model = genai.GenerativeModel("gemini-3.5-flash-lite")
 
 # 3. Database setup
 DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"ssl": {"check_hostname": False, "cert_reqs": 0}}
-)
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set. Copy .env.example to .env and fill it in.")
+# Aiven MySQL needs SSL; other databases (SQLite for local tests) do not
+connect_args = {}
+if DATABASE_URL.startswith("mysql"):
+    connect_args = {"ssl": {"check_hostname": False, "cert_reqs": 0}}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -47,6 +49,39 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB is plenty for a text resume
+
+# wkhtmltopdf options for /export-pdf/. The HTML comes from the caller, so
+# block anything that would make the server fetch other files or URLs:
+# local files are refused and every network request goes to a dead proxy.
+PDF_OPTIONS = {
+    "disable-local-file-access": None,
+    "disable-javascript": None,
+    "proxy": "http://127.0.0.1:9",
+    "load-error-handling": "ignore",
+    "load-media-error-handling": "ignore",
+    "encoding": "UTF-8",
+}
+
+
+def parse_evaluation(raw_text: str) -> dict:
+    """Turns Gemini's reply into {ats_score, strengths, weaknesses}, or raises ValueError."""
+    cleaned = raw_text.replace("```json", "").replace("```", "").strip()
+    data = json.loads(cleaned)
+    if not isinstance(data, dict):
+        raise ValueError("reply is not a JSON object")
+    missing = [key for key in ("ats_score", "strengths", "weaknesses") if key not in data]
+    if missing:
+        raise ValueError(f"reply is missing {', '.join(missing)}")
+    score = float(data["ats_score"])
+    if not 0 <= score <= 100:
+        raise ValueError(f"ats_score {score} is outside 0 to 100")
+    return {
+        "ats_score": score,
+        "strengths": str(data["strengths"]),
+        "weaknesses": str(data["weaknesses"]),
+    }
 
 def get_db():
     db = SessionLocal()
@@ -61,17 +96,26 @@ async def upload_resume(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    if not file.filename.endswith(".pdf"):
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
     content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="PDF is larger than 5 MB")
     
     try:
         pdf_file = io.BytesIO(content)
         pdf_reader = PdfReader(pdf_file)
-        extracted_text = "".join([page.extract_text() for page in pdf_reader.pages])
+        # extract_text() returns None for pages that are only an image
+        extracted_text = "".join([page.extract_text() or "" for page in pdf_reader.pages])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading PDF: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Could not read this PDF: {str(e)}")
+
+    if not extracted_text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="No text found in this PDF. Scanned or image-only resumes cannot be read.",
+        )
     
     try:
         # Generate prompt for Gemini AI
@@ -89,14 +133,15 @@ async def upload_resume(
         Resume Text:
         {extracted_text}
         """
-        response = ai_model.generate_content(prompt)
-        
-        # Parse the response to extract JSON data
-        raw_text = response.text.replace("```json", "").replace("```", "").strip()
-        evaluation_data = json.loads(raw_text)
-        
+        # Async call, so one slow Gemini request does not block every other request
+        response = await ai_model.generate_content_async(prompt)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI processing failed: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"AI processing failed: {str(e)}")
+
+    try:
+        evaluation_data = parse_evaluation(response.text)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(status_code=502, detail=f"AI returned an unexpected format: {str(e)}")
     
     try:
         # Store the evaluation in the database (without user ID and quota)
@@ -122,7 +167,8 @@ async def upload_resume(
     }
 
 # 5. API get evaluation by ID
-@app.get("/evaluations/{evaluation_id}")
+# Returns the score and feedback only, never the resume text itself
+@app.get("/evaluations/{evaluation_id}", response_model=schemas.ResumeEvaluationResponse)
 def get_evaluation(evaluation_id: int, db: Session = Depends(get_db)):
     evaluation = db.query(models.ResumeEvaluation).filter(models.ResumeEvaluation.id == evaluation_id).first()
     
@@ -222,7 +268,7 @@ def export_pdf(data: HTMLInput):
             path_wkhtmltopdf = '/usr/bin/wkhtmltopdf'
             
         config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
-        pdf_bytes = pdfkit.from_string(data.html_content, False, configuration=config)
+        pdf_bytes = pdfkit.from_string(data.html_content, False, configuration=config, options=PDF_OPTIONS)
         
         return Response(
             content=pdf_bytes,
